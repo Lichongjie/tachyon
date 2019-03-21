@@ -14,6 +14,7 @@ package alluxio.client.block.stream;
 import alluxio.Configuration;
 import alluxio.PropertyKey;
 import alluxio.client.file.FileSystemContext;
+import alluxio.client.file.RPCCache.RPCDelayQueue;
 import alluxio.client.file.options.InStreamOptions;
 import alluxio.metrics.ClientMetrics;
 import alluxio.metrics.MetricsSystem;
@@ -164,11 +165,12 @@ public final class LocalFilePacketReader implements PacketReader {
       Protocol.LocalBlockCloseRequest request =
           Protocol.LocalBlockCloseRequest.newBuilder().setBlockId(mBlockId).build();
       try {
-        NettyRPC.call(NettyRPCContext.defaults().setChannel(mChannel).setTimeout(READ_TIMEOUT_MS),
-            new ProtoMessage(request));
+       // NettyRPC.call(NettyRPCContext.defaults().setChannel(mChannel).setTimeout(READ_TIMEOUT_MS),
+       //     new ProtoMessage(request));
+        RPCDelayQueue.INSTANCE.add(request, mAddress, mChannel);
       } finally {
         mClosed = true;
-        mContext.releaseNettyChannel(mAddress, mChannel);
+        //mContext.releaseNettyChannel(mAddress, mChannel);
       }
     }
   }

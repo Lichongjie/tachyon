@@ -14,6 +14,7 @@ package alluxio.client.block.stream;
 import alluxio.Configuration;
 import alluxio.PropertyKey;
 import alluxio.client.file.FileSystemContext;
+import alluxio.client.file.RPCCache.RPCDelayQueue;
 import alluxio.client.file.options.OutStreamOptions;
 import alluxio.network.netty.NettyRPC;
 import alluxio.network.netty.NettyRPCContext;
@@ -92,7 +93,14 @@ public final class LocalFilePacketWriter implements PacketWriter {
               .setTier(options.getWriteTier()).setSpaceToReserve(FILE_BUFFER_BYTES).build());
       NettyRPCContext nettyRPCContext =
           NettyRPCContext.defaults().setChannel(channel).setTimeout(WRITE_TIMEOUT_MS);
-      ProtoMessage message = NettyRPC.call(nettyRPCContext, createRequest);
+      ProtoMessage message;
+      if(RPCDelayQueue.INSTANCE.hit(createRequest.asLocalBlockOpenRequest()) ||
+              !RPCDelayQueue.INSTANCE.tmp2.containsKey(blockId) ) {
+        message = NettyRPC.call(nettyRPCContext, createRequest);
+        RPCDelayQueue.INSTANCE.tmp2.put(blockId, message);
+      } else {
+        message = RPCDelayQueue.INSTANCE.tmp2.get(blockId);
+      }
       Preconditions.checkState(message.isLocalBlockCreateResponse());
       LocalFileBlockWriter writer =
           closer.register(new LocalFileBlockWriter(message.asLocalBlockCreateResponse().getPath()));
